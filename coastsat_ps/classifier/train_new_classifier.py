@@ -58,13 +58,13 @@ filepath_models = create_folder(os.path.join(os.getcwd(), 'models'))
     # to a new folder and set this folder as filepath_images variable (below)
     # Note: You only need a few images (~10) to train the classifier.
      
-sitename = 'NARRA'
+sitename = 'PATRICIA_BAY'
 
-filepath_images = ('...CoastSat.PlanetScope/outputs/NARRA/toa_image_data/merged_data/local_coreg_merged')
+filepath_images = r'C:\Users\psteeves\coastal\planetscope_coastsat\outputs\PATRICIA_BAY\toa_image_data\merged_data\global_coreg_merged'
 
-epsg = 28356
+epsg = 26910
 
-classifier_save_name = 'NN_4classes_PS'
+classifier_save_name = 'NN_8b_PS'
 
 
 #%% Update settings
@@ -74,7 +74,7 @@ settings ={'filepath_train':filepath_train, # folder where the labelled images w
            'inputs':{'filepath':filepath_images, 'sitename': sitename}, # folder where the images are stored
            'labels':{'sand':1,'white-water':2,'water':3,'other land features':4}, # labels for the classifier
            'colors':{'sand':[1, 0.65, 0],'white-water':[1,0,1],'water':[0.1,0.1,0.7],'other land features':[0.8,0.8,0.1]},
-           'tolerance':0.02, # this is the pixel intensity tolerance, when using flood fill for sandy pixels
+           'tolerance':0.03, # this is the pixel intensity tolerance, when using flood fill for sandy pixels
                              # set to 0 to select one pixel at a time
             }
         
@@ -108,28 +108,28 @@ features = load_labels(train_sites, settings)
 
 #%% [OPTIONAL] - import previously trained features
 
-save_pkl = 'CoastSat_PS_training_set_NARRA_50000.pkl'
+# save_pkl = 'CoastSat_PS_training_set_NARRA_50000.pkl'
 
-# Load the original CoastSat.PlanetScope training data (and optionally merge it with your labelled data)
-with open(os.path.join(settings['filepath_train'], save_pkl), 'rb') as f:
-    features_original = pickle.load(f)
-print('Loaded classifier features:')
-for key in features_original.keys():
-    print('%s : %d pixels'%(key,len(features_original[key])))
+# # Load the original CoastSat.PlanetScope training data (and optionally merge it with your labelled data)
+# with open(os.path.join(settings['filepath_train'], save_pkl), 'rb') as f:
+#     features_original = pickle.load(f)
+# print('Loaded classifier features:')
+# for key in features_original.keys():
+#     print('%s : %d pixels'%(key,len(features_original[key])))
 
-# # Option 1) add the white-water data from the original training data
-# features['white-water'] = np.append(features['white-water'], features_original['white-water'], axis=0)
+# # # Option 1) add the white-water data from the original training data
+# # features['white-water'] = np.append(features['white-water'], features_original['white-water'], axis=0)
 
-# # Option 2) Merge all the classes
-for key in features.keys():
-    features[key] = np.append(features[key], features_original[key], axis=0)
+# # # Option 2) Merge all the classes
+# for key in features.keys():
+#     features[key] = np.append(features[key], features_original[key], axis=0)
 
-# Option 3) Use original data
-# features = features_original 
+# # Option 3) Use original data
+# # features = features_original 
 
-print('\nUpdated classifier features:')
-for key in features.keys():
-    print('%s : %d pixels'%(key,len(features[key])))
+# print('\nUpdated classifier features:')
+# for key in features.keys():
+#     print('%s : %d pixels'%(key,len(features[key])))
 
 
 #%% As the classes do not have the same number of pixels, it is good practice to 

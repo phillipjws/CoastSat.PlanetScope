@@ -30,16 +30,13 @@ from shoreline_tools import (calculate_features, classify_image_NN,
 #%% PS data bridging functions
 
 def get_ps_metadata(filepath_images, epsg):
-    
     ''' Function to match PS data with CoastSat metadata input '''
-    
     metadata = {'PS':{
                 'filenames':[],
                 'acc_georef':[],
                 'epsg':[],
                 'dates':[]}
                 }
-    
     # Extract filenames
     for file in os.listdir(filepath_images):
         if file[-7:] == 'TOA.tif':
@@ -170,10 +167,10 @@ def label_images(metadata,settings):
             if cloud_cover > settings['cloud_thresh'] or cloud_cover == 1:
                 continue
             # get individual RGB image
-            im_RGB = rescale_image_intensity(im_ms[:,:,[2,1,0]], cloud_mask, 99.9)
-            im_NDVI = nd_index(im_ms[:,:,3], im_ms[:,:,2], cloud_mask)  # Nir - Red
+            im_RGB = rescale_image_intensity(im_ms[:, :, [5, 3, 1]], cloud_mask, 99.9)
+            im_NDVI = nd_index(im_ms[:, :, 7], im_ms[:, :, 5], cloud_mask)  # NIR - Red
             #im_NDWI = nd_index(im_ms[:,:,3], im_ms[:,:,1], cloud_mask)  # Nir - Green
-            im_NDWI = nd_index(im_ms[:,:,3], im_ms[:,:,0], cloud_mask)  # Nir - Blue
+            im_NDWI = nd_index(im_ms[:, :, 3], im_ms[:, :, 7], cloud_mask)  # Green II - NIR
             
             # initialise labels
             im_viz = im_RGB.copy()
@@ -414,7 +411,9 @@ def load_labels(train_sites, settings):
     filepath_train = settings['filepath_train']
     # initialize the features dict
     features = dict([])
-    n_features = 16 # (no. bands + no. indices tested)*2 to account for std  versions
+    n_bands = 8
+    n_indices = 8
+    n_features = (n_bands + n_indices) * 2
     first_row = np.nan*np.ones((1,n_features))
     for key in settings['labels'].keys():
         features[key] = first_row
@@ -629,7 +628,7 @@ def evaluate_classifier(classifier, classifier_save_name, metadata, settings):
             im_labels = np.stack((im_sand,im_swash,im_water), axis=-1)
             
             # make a plot
-            im_RGB = rescale_image_intensity(im_ms[:,:,[2,1,0]], cloud_mask, 99.9)
+            im_RGB = rescale_image_intensity(im_ms[:, :, [5, 3, 1]], cloud_mask, 99.9)
             # create classified image
             im_class = np.copy(im_RGB)
             for k in range(0,im_labels.shape[2]):

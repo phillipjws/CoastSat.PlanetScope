@@ -211,20 +211,20 @@ def convert_to_TOA(output_dict, settings):
     
     # convert each MS tif file
     for folder in output_dict['downloads_map']:  
-        for i in range(len(output_dict['downloads_map'][folder]['_AnalyticMS_clip.tif']['filepaths'])):
+        for i in range(len(output_dict['downloads_map'][folder]['_AnalyticMS_8b_clip.tif']['filepaths'])):
             # print progress
             if settings['arosics_reproject'] == False:
                 print('\rConverting image ' + str(count) + ' of ' + str(noImage) + ' to TOA (' + str(int((count/noImage)*100)) + '%)', end = '')
             else:
                 print('\rConverting image ' + str(count) + ' of ' + str(noImage) + ' to TOA (' + str(int((count/noImage)*100)) + '%) - arosics_reproject workaround applied', end = '')
-            image_path = output_dict['downloads_map'][folder]['_AnalyticMS_clip.tif']['filepaths'][i]
+            image_path = output_dict['downloads_map'][folder]['_AnalyticMS_8b_clip.tif']['filepaths'][i]
             # Find corresponding xml file
-            search_id = output_dict['downloads_map'][folder]['_AnalyticMS_clip.tif']['filenames'][i][9:20]
+            search_id = output_dict['downloads_map'][folder]['_AnalyticMS_8b_clip.tif']['filenames'][i][9:20]
             for ii in range(len(output_dict['downloads_map'][folder]['_metadata_clip.xml']['filenames'])):            
                 if output_dict['downloads_map'][folder]['_metadata_clip.xml']['filenames'][ii][9:20] == search_id:
                     xml_path = output_dict['downloads_map'][folder]['_metadata_clip.xml']['filepaths'][ii]
             
-            save_name = output_dict['downloads_map'][folder]['_AnalyticMS_clip.tif']['filenames'][i].replace('.tif','')
+            save_name = output_dict['downloads_map'][folder]['_AnalyticMS_8b_clip.tif']['filenames'][i].replace('.tif','')
             save_path = os.path.join(settings['raw_data'],save_name)
             
             count = count + 1
@@ -252,7 +252,7 @@ def extract_masks(output_dict, settings):
     # find total number of images  
     noAllImages = 0
     for folder in output_dict['downloads_map']:   
-        noAllImages = noAllImages + len(output_dict['downloads_map'][folder]['_AnalyticMS_clip.tif']['filepaths'])
+        noAllImages = noAllImages + len(output_dict['downloads_map'][folder]['_AnalyticMS_8b_clip.tif']['filepaths'])
     
     # initialise udm counts
     udm_count = 0
@@ -260,10 +260,10 @@ def extract_masks(output_dict, settings):
     
     # Mask each MS tif file (check if udm or udm2 mask)
     for folder in output_dict['downloads_map']:  
-        no_images = len(output_dict['downloads_map'][folder]['_AnalyticMS_clip.tif']['filepaths'])
+        no_images = len(output_dict['downloads_map'][folder]['_AnalyticMS_8b_clip.tif']['filepaths'])
         
         for i in range(no_images):
-            search_id = output_dict['downloads_map'][folder]['_AnalyticMS_clip.tif']['filenames'][i][9:20]
+            search_id = output_dict['downloads_map'][folder]['_AnalyticMS_8b_clip.tif']['filenames'][i][9:20]
             
             # print progress
             print('\rExtracting masks for image ' + str(img_count) + ' of ' + str(img_all), end='')
@@ -291,8 +291,8 @@ def extract_masks(output_dict, settings):
                             dtype=rasterio.uint8,
                             count = 1)
                             
-                        udm_path = udm2_path.replace('udm2_clip.tif', 'AnalyticMS_DN_udm_clip.tif')
-                        udm_name = udm2_name.replace('udm2_clip.tif', 'AnalyticMS_DN_udm_clip.tif')
+                        udm_path = udm2_path.replace('udm2_clip.tif', 'AnalyticMS_8b_DN_udm_clip.tif')
+                        udm_name = udm2_name.replace('udm2_clip.tif', 'AnalyticMS_8b_DN_udm_clip.tif')
 
                         with rasterio.open(udm_path, 'w', **kwargs) as dst:
                                 dst.write_band(1, udm.astype(rasterio.uint8))
@@ -301,7 +301,7 @@ def extract_masks(output_dict, settings):
                         output_dict['downloads_map'][folder]['_udm_clip.tif']['filepaths'] += [udm_path]
                 
             if len(output_dict['downloads_map'][folder]['_udm_clip.tif']['filenames']) == 0:
-                print('No mask found for file' + output_dict['downloads_map'][folder]['_AnalyticMS_clip.tif']['filenames'][i])
+                print('No mask found for file' + output_dict['downloads_map'][folder]['_AnalyticMS_8b_clip.tif']['filenames'][i])
             else:
                 for ii in range(len(output_dict['downloads_map'][folder]['_udm_clip.tif']['filenames'])):
                     if output_dict['downloads_map'][folder]['_udm_clip.tif']['filenames'][ii][9:20] == search_id:
@@ -309,11 +309,12 @@ def extract_masks(output_dict, settings):
                         
                         mask_path = output_dict['downloads_map'][folder]['_udm_clip.tif']['filepaths'][ii]
                         
-                        save_name = output_dict['downloads_map'][folder]['_udm_clip.tif']['filenames'][ii].replace('.tif','')+'_cloud_mask.tif'
+                        toa_filename = output_dict['downloads_map'][folder]['_AnalyticMS_8b_clip.tif']['filenames'][i]
+                        save_name = toa_filename.replace('clip.tif','')+'DN_udm_clip_cloud_mask.tif'
                         save_path = os.path.join(settings['raw_data'],save_name) 
                         save_mask(settings, mask_path, save_path,'00000010', cloud_issue = True)
                         
-                        save_name = output_dict['downloads_map'][folder]['_udm_clip.tif']['filenames'][ii].replace('.tif','')+'_NaN_mask.tif'
+                        save_name = toa_filename.replace('clip.tif','')+'DN_udm_clip_NaN_mask.tif'
                         save_path = os.path.join(settings['raw_data'], save_name) 
                         save_mask(settings, mask_path, save_path,'1111100', nan_issue = True)
                                                                                                    

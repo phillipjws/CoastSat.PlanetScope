@@ -139,14 +139,12 @@ def zero_to_nan(im_path, nan_path, faulty_pixels = True, write = True):
     mask_out = np.zeros((nan_mask.shape[0], nan_mask.shape[1]), dtype = int)
     
     # for each band, find zero values and add to nan_mask
-    for i in [1,2,3,4]:
+    for i in range(1, 9):
         # open band
         with rasterio.open(im_path, 'r') as src1:
             im_band = src1.read(i)
-            
         # boolean of band pixels with zero value
         im_zero = im_band == 0
-        
         # update mask_out
         mask_out += im_zero
             
@@ -399,6 +397,36 @@ def mask_coreg(settings, im_target_mask, cr_param, mask_out_path,
                 
     
 def create_land_mask(settings, toa_path, save_loc, nan_path = False, raw_mask = False, save_class = False):
+    # print("Creating land mask: All pixels set to water (0).")
+    
+    # # Open TOA image to get metadata
+    # with rasterio.open(toa_path) as src:
+    #     width = src.width
+    #     height = src.height
+    #     transform = src.transform
+    #     crs = src.crs
+        
+    #     # Create a mask with all pixels set to water (0)
+    #     land_mask = np.zeros((height, width), dtype=np.uint8)
+        
+    #     # Define metadata for the mask
+    #     kwargs = src.meta
+    #     kwargs.update(
+    #         dtype=rasterio.uint8,
+    #         count=1,
+    #         compress='lzw'  # Optional: Compress the output file
+    #     )
+        
+    #     # Save the land mask
+    #     with rasterio.open(save_loc, 'w', **kwargs) as dst:
+    #         dst.write_band(1, land_mask)
+    
+    # if save_class:
+    #     # Optionally, save a classification image (all water)
+    #     with rasterio.open(save_loc.replace('_land_mask.tif', '_class.tif'), 'w', **kwargs) as dst:
+    #         dst.write_band(1, land_mask)
+    
+    # print("Land mask created and saved to:", save_loc)
     
     # Classify image
     if nan_path == False:
@@ -516,29 +544,25 @@ def TOA_conversion(settings, image_path, xml_path, save_path):
 
     '''
     
-    # Load image bands - note all PlanetScope 4-band images have band order BGRN
+    # Load image bands
     with rasterio.open(image_path) as src:
-        band_blue_radiance = src.read(1)
-        
-    with rasterio.open(image_path) as src:
-        band_green_radiance = src.read(2)
-    
-    with rasterio.open(image_path) as src:
-        band_red_radiance = src.read(3)
-    
-    with rasterio.open(image_path) as src:
-        band_nir_radiance = src.read(4)
-    
+        band_coastal_blue_radiance = src.read(1)
+        band_blue_radiance = src.read(2)
+        band_green1_radiance = src.read(3)
+        band_green2_radiance = src.read(4)
+        band_yellow_radiance = src.read(5)
+        band_red_radiance = src.read(6)
+        band_red_edge_radiance = src.read(7)
+        band_nir_radiance = src.read(8)
     
     ### Get TOA Factor ###
     xmldoc = minidom.parse(xml_path)
     nodes = xmldoc.getElementsByTagName("ps:bandSpecificMetadata")
     
-    # XML parser refers to bands by numbers 1-4
     coeffs = {}
     for node in nodes:
         bn = node.getElementsByTagName("ps:bandNumber")[0].firstChild.data
-        if bn in ['1', '2', '3', '4']:
+        if bn in [str(i) for i in range(1, 9)]:
             i = int(bn)
             value = node.getElementsByTagName("ps:reflectanceCoefficient")[0].firstChild.data
             coeffs[i] = float(value)
@@ -549,10 +573,14 @@ def TOA_conversion(settings, image_path, xml_path, save_path):
     ### Convert to TOA ###
     
     # Multiply the Digital Number (DN) values in each band by the TOA reflectance coefficients
-    band_blue_reflectance = band_blue_radiance * coeffs[1]
-    band_green_reflectance = band_green_radiance * coeffs[2]
-    band_red_reflectance = band_red_radiance * coeffs[3]
-    band_nir_reflectance = band_nir_radiance * coeffs[4]
+    band_coastal_blue_reflectance = band_coastal_blue_radiance * coeffs[1]
+    band_blue_reflectance = band_blue_radiance * coeffs[2]
+    band_green1_reflectance = band_green1_radiance * coeffs[3]
+    band_green2_reflectance = band_green2_radiance * coeffs[4]
+    band_yellow_reflectance = band_yellow_radiance * coeffs[5]
+    band_red_reflectance = band_red_radiance * coeffs[6]
+    band_red_edge_reflectance = band_red_edge_radiance * coeffs[7]
+    band_nir_reflectance = band_nir_radiance * coeffs[8]
     
     #print("Red band radiance is from {} to {}".format(np.amin(band_red_radiance), np.amax(band_red_radiance)))
     #print("Red band reflectance is from {} to {}".format(np.amin(band_red_reflectance), np.amax(band_red_reflectance)))
@@ -577,24 +605,30 @@ def TOA_conversion(settings, image_path, xml_path, save_path):
     kwargs = src.meta
     kwargs.update(
         dtype=rasterio.uint16,
-        count = 4)
+        count = 8)
     
     #print("Before Scaling, red band reflectance is from {} to {}".format(np.amin(band_red_reflectance), np.amax(band_red_reflectance)))
     # Here we include a fixed scaling factor. This is common practice.
+    # Scale the reflectance values
     scale = 10000
+    coastal_blue_ref_scaled = scale * band_coastal_blue_reflectance
     blue_ref_scaled = scale * band_blue_reflectance
-    green_ref_scaled = scale * band_green_reflectance
+    green1_ref_scaled = scale * band_green1_reflectance
+    green2_ref_scaled = scale * band_green2_reflectance
+    yellow_ref_scaled = scale * band_yellow_reflectance
     red_ref_scaled = scale * band_red_reflectance
+    red_edge_ref_scaled = scale * band_red_edge_reflectance
     nir_ref_scaled = scale * band_nir_reflectance
-    
-    #print("After Scaling, red band reflectance is from {} to {}".format(np.amin(red_ref_scaled), np.amax(red_ref_scaled)))
-        
-    # Write band calculations to a new raster file
+
     with rasterio.open(save_path, 'w', **kwargs) as dst:
-            dst.write_band(1, blue_ref_scaled.astype(rasterio.uint16))
-            dst.write_band(2, green_ref_scaled.astype(rasterio.uint16))
-            dst.write_band(3, red_ref_scaled.astype(rasterio.uint16))
-            dst.write_band(4, nir_ref_scaled.astype(rasterio.uint16))
+        dst.write_band(1, coastal_blue_ref_scaled.astype(rasterio.uint16))
+        dst.write_band(2, blue_ref_scaled.astype(rasterio.uint16))
+        dst.write_band(3, green1_ref_scaled.astype(rasterio.uint16))
+        dst.write_band(4, green2_ref_scaled.astype(rasterio.uint16))
+        dst.write_band(5, yellow_ref_scaled.astype(rasterio.uint16))
+        dst.write_band(6, red_ref_scaled.astype(rasterio.uint16))
+        dst.write_band(7, red_edge_ref_scaled.astype(rasterio.uint16))
+        dst.write_band(8, nir_ref_scaled.astype(rasterio.uint16))
     
     # Reproject all to output coordinate system
     if settings['arosics_reproject'] == True:
@@ -602,7 +636,3 @@ def TOA_conversion(settings, image_path, xml_path, save_path):
         if crs_in != settings['output_epsg']:
             raster_change_epsg(settings, save_path, '0', crs_in)
         
-    
-
-
-    

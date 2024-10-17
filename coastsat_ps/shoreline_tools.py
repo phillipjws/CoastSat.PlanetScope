@@ -23,45 +23,56 @@ warnings.filterwarnings("ignore", category=RuntimeWarning)
 #%% Index calculations
 
 def calc_water_index(toa_path, settings, save_name):
-    
-    # Extract water index vals
+    # Extract water index values
     band1_no = settings['water_index_list'][0]
-    band2_no = settings['water_index_list'][1]    
-    norm_bool = settings['water_index_list'][2]
+    band2_no = settings['water_index_list'][1]
+    operation = settings['water_index_list'][2]
     file_end = settings['water_index_list'][3]
     
-    # import bands
+    # Import bands
     with rasterio.open(toa_path) as src:
+        # Read bands and convert to reflectance
         band_1_reflectance = src.read(band1_no)
-        band_1 = band_1_reflectance/10000
+        band_1 = band_1_reflectance / 10000.0
         
-    with rasterio.open(toa_path) as src:
         band_2_reflectance = src.read(band2_no)
-        band_2 = band_2_reflectance/10000
+        band_2 = band_2_reflectance / 10000.0
+        
+        # Set spatial characteristics of the output object to mirror the input
+        kwargs = src.meta
     
+    # Replace zeros with NaN
     band_1[band_1 == 0] = np.nan
     band_2[band_2 == 0] = np.nan
 
-    # Allow division by zero
+    # Allow division by zero and ignore invalid calculations
     np.seterr(divide='ignore', invalid='ignore')
         
-    # perform calculation
-    if norm_bool:
-        water_index = (band_1.astype(float) - band_2.astype(float)) / (band_1 + band_2)
+    # Perform calculation based on the operation
+    if operation == 'normalized_difference':
+        index = (band_1 - band_2) / (band_1 + band_2)
+    elif operation == 'ratio':
+        index = band_1 / band_2
+    elif operation == 'difference':
+        index = band_1 - band_2
     else:
-        water_index = (band_1.astype(float) - band_2.astype(float))
+        raise ValueError(f"Unknown operation '{operation}' in water index calculation")
+    
+    # Handle NaNs and infinite values
+    index = np.nan_to_num(index, nan=0.0, posinf=0.0, neginf=0.0)
 
-    # Set spatial characteristics of the output object to mirror the input
-    kwargs = src.meta
+    # Update metadata for output
     kwargs.update(
         dtype=rasterio.float32,
-        count = 1)
+        count=1,
+        compress='lzw'  # Optional: compress output to save space
+    )
     
     # Save image to new file
     save_file = os.path.join(settings['index_tif_out'], save_name + file_end)
     
     with rasterio.open(save_file, 'w', **kwargs) as dst:
-            dst.write_band(1, water_index.astype(rasterio.float32))
+        dst.write(index.astype(rasterio.float32), 1)
 
 
 #%% Thresholding
@@ -141,14 +152,12 @@ def calculate_features(im_ms, cloud_mask, im_bool):
     The features include spectral normalized-difference indices and standard 
     deviation of the image for all the bands and indices.
 
-    KV WRL 2018
-    
-    Modified for PS data by YD 2020
+    Modified for 8-band PlanetScope imagery.
 
     Arguments:
     -----------
     im_ms: np.array
-        RGB + downsampled NIR and SWIR
+        Multispectral image with shape (height, width, bands)
     cloud_mask: np.array
         2D cloud mask with True where cloud pixels are
     im_bool: np.array
@@ -162,42 +171,67 @@ def calculate_features(im_ms, cloud_mask, im_bool):
         
     """
 
-    # add all the multispectral bands
-    features = np.expand_dims(im_ms[im_bool,0],axis=1)
-    for k in range(1,im_ms.shape[2]):
-        feature = np.expand_dims(im_ms[im_bool,k],axis=1)
+    # Initialize features array with the multispectral bands
+    # Add all the multispectral bands (8 bands)
+    features = np.expand_dims(im_ms[im_bool, 0], axis=1)
+    for k in range(1, im_ms.shape[2]):
+        feature = np.expand_dims(im_ms[im_bool, k], axis=1)
         features = np.append(features, feature, axis=-1)
-        
-    # NIR-G
-    im_NIRG = nd_index(im_ms[:,:,3], im_ms[:,:,1], cloud_mask)
-    features = np.append(features, np.expand_dims(im_NIRG[im_bool],axis=1), axis=-1)
-    
-    # NIR-B
-    im_NIRB = nd_index(im_ms[:,:,3], im_ms[:,:,0], cloud_mask)
-    features = np.append(features, np.expand_dims(im_NIRB[im_bool],axis=1), axis=-1)
-    
-    # NIR-R
-    im_NIRR = nd_index(im_ms[:,:,3], im_ms[:,:,2], cloud_mask)
-    features = np.append(features, np.expand_dims(im_NIRR[im_bool],axis=1), axis=-1)
-        
-    # B-R
-    im_BR = nd_index(im_ms[:,:,0], im_ms[:,:,2], cloud_mask)
-    features = np.append(features, np.expand_dims(im_BR[im_bool],axis=1), axis=-1)
-    
-    # calculate standard deviation of individual bands
+
+    # Compute indices
+    # NDVI: (NIR - Red) / (NIR + Red)
+    im_NDVI = nd_index(im_ms[:, :, 7], im_ms[:, :, 5], cloud_mask)
+    features = np.append(features, np.expand_dims(im_NDVI[im_bool], axis=1), axis=-1)
+
+    # NDWI: (Green II - NIR) / (Green II + NIR)
+    im_NDWI = nd_index(im_ms[:, :, 3], im_ms[:, :, 7], cloud_mask)
+    features = np.append(features, np.expand_dims(im_NDWI[im_bool], axis=1), axis=-1)
+
+    # NDSI: (Red - Green II) / (Red + Green II)
+    im_NDSI = nd_index(im_ms[:, :, 5], im_ms[:, :, 3], cloud_mask)
+    features = np.append(features, np.expand_dims(im_NDSI[im_bool], axis=1), axis=-1)
+
+    # RENDVI: (NIR - Red Edge) / (NIR + Red Edge)
+    im_RENDVI = nd_index(im_ms[:, :, 7], im_ms[:, :, 6], cloud_mask)
+    features = np.append(features, np.expand_dims(im_RENDVI[im_bool], axis=1), axis=-1)
+
+    # Blue_NIR_Ratio: Blue / NIR
+    with np.errstate(divide='ignore', invalid='ignore'):
+        im_Blue_NIR_Ratio = np.true_divide(im_ms[:, :, 1], im_ms[:, :, 7])
+        im_Blue_NIR_Ratio[~np.isfinite(im_Blue_NIR_Ratio)] = 0  # Set infinities and NaNs to zero
+    features = np.append(features, np.expand_dims(im_Blue_NIR_Ratio[im_bool], axis=1), axis=-1)
+
+    # Coastal_NIR_Ratio: Coastal Blue / NIR
+    with np.errstate(divide='ignore', invalid='ignore'):
+        im_Coastal_NIR_Ratio = np.true_divide(im_ms[:, :, 0], im_ms[:, :, 7])
+        im_Coastal_NIR_Ratio[~np.isfinite(im_Coastal_NIR_Ratio)] = 0
+    features = np.append(features, np.expand_dims(im_Coastal_NIR_Ratio[im_bool], axis=1), axis=-1)
+
+    # Green_RedEdge_Ratio: Green II / Red Edge
+    with np.errstate(divide='ignore', invalid='ignore'):
+        im_Green_RedEdge_Ratio = np.true_divide(im_ms[:, :, 3], im_ms[:, :, 6])
+        im_Green_RedEdge_Ratio[~np.isfinite(im_Green_RedEdge_Ratio)] = 0
+    features = np.append(features, np.expand_dims(im_Green_RedEdge_Ratio[im_bool], axis=1), axis=-1)
+
+    # Yellow_Red_Ratio: Yellow / Red
+    with np.errstate(divide='ignore', invalid='ignore'):
+        im_Yellow_Red_Ratio = np.true_divide(im_ms[:, :, 4], im_ms[:, :, 5])
+        im_Yellow_Red_Ratio[~np.isfinite(im_Yellow_Red_Ratio)] = 0
+    features = np.append(features, np.expand_dims(im_Yellow_Red_Ratio[im_bool], axis=1), axis=-1)
+
+    # Now, compute the standard deviation of individual bands
     for k in range(im_ms.shape[2]):
-        im_std =  image_std(im_ms[:,:,k], 2)
-        features = np.append(features, np.expand_dims(im_std[im_bool],axis=1), axis=-1)
-        
-    # calculate standard deviation of the spectral indices
-    im_std = image_std(im_NIRG, 2)
-    features = np.append(features, np.expand_dims(im_std[im_bool],axis=1), axis=-1)
-    im_std = image_std(im_NIRB, 2)
-    features = np.append(features, np.expand_dims(im_std[im_bool],axis=1), axis=-1)
-    im_std = image_std(im_NIRR, 2)
-    features = np.append(features, np.expand_dims(im_std[im_bool],axis=1), axis=-1)
-    im_std = image_std(im_BR, 2)
-    features = np.append(features, np.expand_dims(im_std[im_bool],axis=1), axis=-1)
+        im_std = image_std(im_ms[:, :, k], 2)
+        features = np.append(features, np.expand_dims(im_std[im_bool], axis=1), axis=-1)
+
+    # Calculate standard deviation of the indices
+    indices_list = [im_NDVI, im_NDWI, im_NDSI, im_RENDVI,
+                    im_Blue_NIR_Ratio, im_Coastal_NIR_Ratio,
+                    im_Green_RedEdge_Ratio, im_Yellow_Red_Ratio]
+
+    for index in indices_list:
+        im_std = image_std(index, 2)
+        features = np.append(features, np.expand_dims(im_std[im_bool], axis=1), axis=-1)
 
     return features
 
