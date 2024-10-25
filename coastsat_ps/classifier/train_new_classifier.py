@@ -20,7 +20,7 @@ import pathlib
 from sklearn.model_selection import train_test_split
 from sklearn.neural_network import MLPClassifier
 from sklearn.model_selection import cross_val_score
-from sklearn.externals import joblib
+import joblib
 
 # coastsat modules
 from classifier_functions import (get_ps_metadata, label_images, load_labels, 
@@ -58,13 +58,13 @@ filepath_models = create_folder(os.path.join(os.getcwd(), 'models'))
     # to a new folder and set this folder as filepath_images variable (below)
     # Note: You only need a few images (~10) to train the classifier.
      
-sitename = 'PATRICIA_BAY'
+sitename = 'JAMES_ISLAND'
 
-filepath_images = r'C:\Users\psteeves\coastal\planetscope_coastsat\outputs\PATRICIA_BAY\toa_image_data\merged_data\global_coreg_merged'
+filepath_images = r'C:\Users\psteeves\coastal\planetscope_coastsat\outputs\JAMES_ISLAND\toa_image_data\merged_data\global_coreg_merged'
 
-epsg = 26910
+epsg = 3157
 
-classifier_save_name = 'NN_8b_PS'
+classifier_save_name = 'NN_8b_new'
 
 
 #%% Update settings
@@ -74,7 +74,7 @@ settings ={'filepath_train':filepath_train, # folder where the labelled images w
            'inputs':{'filepath':filepath_images, 'sitename': sitename}, # folder where the images are stored
            'labels':{'sand':1,'white-water':2,'water':3,'other land features':4}, # labels for the classifier
            'colors':{'sand':[1, 0.65, 0],'white-water':[1,0,1],'water':[0.1,0.1,0.7],'other land features':[0.8,0.8,0.1]},
-           'tolerance':0.03, # this is the pixel intensity tolerance, when using flood fill for sandy pixels
+           'tolerance':0.15, # this is the pixel intensity tolerance, when using flood fill for sandy pixels
                              # set to 0 to select one pixel at a time
             }
         
@@ -101,7 +101,7 @@ label_images(metadata, settings)
 
 # load labelled images
 train_sites = next(os.walk(os.path.join(os.getcwd(), 'training_data')))[1]
-#train_sites = ['NARRA']
+# train_sites = ['CORDOVA_BAY']
 print('Loading data for sites:\n',train_sites, '\n')
 features = load_labels(train_sites, settings)
 
@@ -142,7 +142,7 @@ features = load_labels(train_sites, settings)
 n_samples = 25000
 #for key in ['water', 'other land features']:
 for key in ['sand', 'water', 'other land features']:
-    features[key] =  features[key][np.random.choice(features[key].shape[0], n_samples, replace=False),:]
+    features[key] =  features[key][np.random.choice(features[key].shape[0], n_samples, replace=True),:]
 # print classes again
 print('Re-sampled classifier features:')
 for key in features.keys():

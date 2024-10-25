@@ -9,7 +9,7 @@ dependencies:
   - geopandas
   - pytz
   - scikit-image
-  - scikit-learn=0.20.3
+  - scikit-learn
   - astropy
   - gdal
   - shapely

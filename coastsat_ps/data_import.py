@@ -5,7 +5,7 @@ import os
 import datetime
 import numpy as np
 from osgeo import gdal
-from sklearn.externals import joblib
+import joblib
 import json
 from shapely.geometry import shape
 from shapely.ops import transform
@@ -40,14 +40,14 @@ def initialise_settings(settings):
     # GDAL warp CRS re-sampling method. 
         # 'near' is the fastest/default but images may be jagged as no is smoothing applied. 'cubic' & 'cubicspline' look the best but are slowest. 'bilinear' is a good middle ground. 
         # Note that re-sampling using cubic, cubicspline and bilinear options may cause issues with arosics. 
-    settings['gdal_method'] = 'near'
+    settings['gdal_method'] = 'cubicspline'
     # Land mask cleaning smoothing parameters - choose lower values if land mask does not cover thin land regions (ie small barrier islands)
     settings['land_mask_smoothing_1'] = 15 # pixels (so x3 for metres)
     settings['land_mask_smoothing_2'] = 10 # pixels (so x3 for metres)
     
     ### Shoreline extraction method
     # Water index
-    settings['water_index'] = 'NDWI'
+    # settings['water_index'] = 'NmB'
     # Shoreline thresholding method ['Otsu', 'Peak Fraction']
     settings['thresholding'] = 'Peak Fraction'
     # Fraction used in custom peak fraction thresholding method
@@ -93,7 +93,7 @@ def initialise_settings(settings):
                         'This line can be commented out if a different folder name is wanted. Check is here to ensure working directory is deliberate so data is not saved in a random location ')
     
     # Create output_folders
-    settings['outputs_base_folder'] = create_folder(os.path.join(os.getcwd(),'outputs'))
+    settings['outputs_base_folder'] = create_folder(os.path.join(os.getcwd(), 'outputs'))
     settings['output_folder'] = create_folder(os.path.join(settings['outputs_base_folder'],settings['site_name']))  # Run directory
     
     settings['toa_out'] = create_folder(os.path.join(settings['output_folder'],'toa_image_data'))
@@ -121,6 +121,8 @@ def initialise_settings(settings):
     
     # Create filepaths
     settings['user_input_folder'] = os.path.join(os.getcwd(), 'user_inputs')
+    settings['reference_shoreline_folder'] = os.path.join(settings['user_input_folder'], 'reference_shorelines')
+    settings['tide_point_folder'] = os.path.join(settings['user_input_folder'], 'tide_points')
     settings['run_input_folder'] = create_folder(os.path.join(settings['output_folder'], 'input_data'))
     
     settings['sl_pkl_file'] = os.path.join(settings['sl_thresh_ind'], settings['site_name'] + '_' + settings['water_index'] + '_' + settings['thresholding'] + '_shorelines.pkl')      # Results out
@@ -186,6 +188,20 @@ def initialise_settings(settings):
     elif settings['water_index'] == 'Yellow_Red_Ratio':
         # Yellow_Red_Ratio: Yellow / Red
         settings['water_index_list'] = [5, 6, 'ratio', '_Yellow_Red_Ratio.tif']
+    elif settings['water_index'] == 'NmG':
+        settings['water_index_list'] = [8, 3, 'difference', '_NmG.tif']
+    elif settings['water_index'] == 'NmB_Norm':
+        settings['water_index_list'] = [8, 2, 'normalized_difference', '_NmB_norm.tif']
+    elif settings['water_index'] == 'NmB':
+        settings['water_index_list'] = [8, 2, 'difference', '_NmB.tif']
+    elif settings['water_index'] == 'NmCB_Norm':
+        settings['water_index_list'] = [8, 1, 'normalized_difference', '_NmCB_norm.tif']
+    elif settings['water_index'] == 'NmCB':
+        settings['water_index_list'] = [8, 1, 'difference', '_NmCB.tif']
+    elif settings['water_index'] == 'RmB_Norm':
+        settings['water_index_list'] = [6, 2, 'normalized_difference', '_RmB_norm.tif']
+    elif settings['water_index'] == 'RmB':
+        settings['water_index_list'] = [6, 2, 'difference', '_RmB.tif']
 
     # Create AOI polygon from KML file
     settings['aoi_geojson'] = os.path.join(settings['run_input_folder'], settings['site_name'] + '_aoi.geojson')

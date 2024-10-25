@@ -45,7 +45,6 @@ def initialise_plot(settings, im_name, index):
     
     # create figure
     fig = plt.figure()
-    fig.tight_layout()
     fig.set_size_inches([8, 8])
     #mng = plt.get_current_fig_manager()
     #mng.window.showMaximized()
@@ -66,23 +65,23 @@ def initialise_plot(settings, im_name, index):
         
     else:
         # horizontal subplots
-        print(('\n    Code to format non-vertical images for plots is not properly developed - this will not impact shoreline extraction.') + 
-              ('Manually edit initialise_plot function in coastsat_ps > plotting.py file as required.\n'))
-        gs = gridspec.GridSpec(nrows = 8, ncols = 30,
-                        wspace = 0, hspace = 0.15,
-                        bottom=0.07, top=0.89, 
-                        left=0.1, right=0.9)
+        gs = gridspec.GridSpec(nrows=6, ncols=30, 
+                               wspace=0.2, hspace=0.4,
+                               bottom=0.1, top=0.85, 
+                               left=0.05, right=0.95)
 
-        ax1 = fig.add_subplot(gs[0:2,:])
-        ax2 = fig.add_subplot(gs[2:4,:], sharex=ax1, sharey=ax1)
-        ax3 = fig.add_subplot(gs[4:6,:], sharex=ax1, sharey=ax1)
-        ax4 = fig.add_subplot(gs[6:,1:29]) # histogram
+        ax1 = fig.add_subplot(gs[0:3, 0:14])
+        ax2 = fig.add_subplot(gs[0:3, 16:30], sharex=ax1, sharey=ax1)
+        ax3 = fig.add_subplot(gs[3:5, 0:14], sharex=ax1, sharey=ax1)
+        ax4 = fig.add_subplot(gs[3:5, 16:30]) # histogram
 
     # Set title from im_name
     fig.suptitle(settings['water_index'] + ' Water Index with ' +  
                  settings['thresholding'] + ' Thresholding\n' + 
                  im_name, 
                  fontsize = 12)
+    
+    fig.tight_layout()
 
     return fig, ax1, ax2, ax3, ax4
 
@@ -340,7 +339,7 @@ def check_land_mask(settings):
     # Load the RGB image
     rgb_path = settings['georef_im_path']
     with rasterio.open(rgb_path) as src_rgb:
-        rgb_image = src_rgb.read([3, 2, 1])  # Read the RGB bands
+        rgb_image = src_rgb.read([6, 3, 1])  # Read the RGB bands
     
     # Check the maximum value of the image
     max_value = rgb_image.max()
@@ -413,7 +412,7 @@ def plot_inputs(settings):
     ##############################
     # Load the RGB image
     with rasterio.open(settings['ref_merge_im']) as src_rgb:
-        rgb_image = src_rgb.read([3, 2, 1])  # Read the RGB bands
+        rgb_image = src_rgb.read([6, 3, 1])  # Read the RGB bands
         rgb_transform = src_rgb.transform
     # Normalize the RGB image if necessary
     if rgb_image.max() > 1.0:

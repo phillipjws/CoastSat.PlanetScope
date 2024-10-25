@@ -76,7 +76,7 @@ def save_mask(settings, udm_filepath, save_path, bit_string, cloud_issue = False
             mask = morphology.binary_opening(mask,elem) # perform image opening
             
             # remove objects with less than 25*75 connected pixels (~75m*225m = 16,875m^2)
-            morphology.remove_small_objects(mask, min_size=25*75, connectivity=1, in_place=True)
+            mask = morphology.remove_small_objects(mask, min_size=25*75, connectivity=1)
       
     if nan_issue:
         # Remove nan pixels that form  thin features
@@ -86,7 +86,7 @@ def save_mask(settings, udm_filepath, save_path, bit_string, cloud_issue = False
             mask = morphology.binary_opening(mask,elem) # perform image opening
             
             # remove small objects 
-            morphology.remove_small_objects(mask, min_size=500, connectivity=2, in_place=True)
+            mask = morphology.remove_small_objects(mask, min_size=500, connectivity=2)
             # remove 
 
     # save mask

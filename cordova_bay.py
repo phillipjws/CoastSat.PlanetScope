@@ -1,6 +1,4 @@
-#%% CoastSat for PlanetScope Dove Imagery
-
-# load coastsat modules
+#%% Imports
 from coastsat_ps.data_import import initialise_settings
 from coastsat_ps.extract_shoreline import extract_shorelines, compute_intersection
 from coastsat_ps.interactive import filter_shorelines                    
@@ -8,14 +6,12 @@ from coastsat_ps.preprocess import (data_extract, pre_process, select_ref_image,
                                     add_ref_features)
 from coastsat_ps.postprocess import tidal_correction, ts_plot_single
 
-
-#%% 0) User Input Settings 
-
+#%% User Input Settings
 settings = {
     
     ### General Settings ###
     # Site name (for output folder and files) 
-    'site_name': 'PATRICIA_BAY',
+    'site_name': 'CORDOVA_BAY',
     # Maximum image cloud cover percentage threshold
     'cloud_threshold': 2, # Default 10
     # Minimum image AOI cover percentage threshold
@@ -25,21 +21,21 @@ settings = {
 
     ### Reference files (in "...CoastSat.PlanetScope/user_inputs/") ###
     # Area of interest file (save as .kml file from geojson.io website)
-    'aoi_kml': 'PATRICIA_BAY_polygon.kml',
+    'aoi_kml': 'CORDOVA_BAY.kml',
     # Transects in geojson file (ensure same epsg as output_epsg)
     'transects': False, # False
         # If False boolean given, popup window will allow for manual drawing of transects
     # Tide csv file in MSL and UTC 
     'tide_data': 'patricia_bay_tides.csv',
     # Local folder planet imagery downloads location (provide full folder path)
-    'downloads_folder': r'C:\Users\psteeves\coastal\planetscope_coastsat\PS_Imagery\Patricia_Bay_24-25_psscene_analytic_8b_udm2\PSScene',
+    'downloads_folder': r'C:\Users\psteeves\coastal\planetscope_coastsat\PS_Imagery\Cordova_Bay_psscene_analytic_8b_udm2\PSScene',
 
     ### Processing settings ###
     # Machine learning classifier filename (in "...CoastSat.PlanetScope/classifier/models")
         # A new classifier may be re-trained after step 1.3. Refer "...CoastSat.PlanetScope/classifier/train_new_classifier.py" for instructions. 
     'classifier': 'NN_8b.pkl',
     # Image co-registration choice ['Coreg Off', 'Local Coreg', 'Global Coreg']
-    'im_coreg': 'Local Coreg', # refer https://pypi.org/project/arosics/ for details on Local vs Global coreg. Local recommended but slower. 
+    'im_coreg': 'Global Coreg', # refer https://pypi.org/project/arosics/ for details on Local vs Global coreg. Local recommended but slower. 
     # Coregistration land mask - when set to False, a new land mask is calculated for each image (slower but more accurate for large geolocation errors or where the land area changes significantly)
     'generic_land_mask': False,
 
@@ -61,96 +57,32 @@ settings = {
 
     }
 
-
-# Import data and updade settings based on user input
 outputs = initialise_settings(settings)
 
-
-#%% 1.1) Pre-processing - TOA conversion and mask extraction
-
+#%% Pre-processing - TOA conversion and mask extraction
 data_extract(settings, outputs)
 
+#%% Select reference image for coreg
+select_ref_image(settings, replace_ref_im=True)
 
-#%% 1.2) Pre-processing - Select reference image for co-registration
+#%% Image coreg and scene merging, run manually
+pre_process(settings, outputs, del_files_int=True, rerun_preprocess=True)
 
-select_ref_image(settings,
-                 # set as true to replace previously selected ref_im
-                 replace_ref_im = True)
+#%% Add reference Features
+add_ref_features(settings, plot=False, redo_features=False)
 
-# If the land mask region is poor, try selecting another reference image by setting replace_ref_im = True
+#%% Extract shoreline data
+shoreline_data=extract_shorelines(outputs, settings, del_index=False, rerun_shorelines=True, reclassify=True)
 
-# If the land mask covers thin land regions (ie barrier islands), try adjusting the following settings:
-#    - reduce min_beach_area (in cell 0)
-#    - reduce land_mask_smoothing_1 and 2 (in data_import.py)
+#%% Manual Error Detection
+shoreline_data = filter_shorelines(settings, manual_filter=True, load_csv=False)
 
-# If the land mask it still poor, try retraining the classifier for your site to improve pixel classification
-
-
-#%% 1.3) Pre-Processing - image coregistration and scene merging
-
-# raise Exception('Run cell 1.3 manually')
-    
-# Due to spyder issue, select the below code and press F9 to run rather than running individual cell
-pre_process(settings, outputs, 
-        # del_files_int = True will delete intermediate coregistration files to save space
-        del_files_int = False,
-        # set as true to replace previously run preprocessing
-        rerun_preprocess = True)
-
-# If coregistration is performing poorly, the following may help:
-#    - try a new reference image
-#    - reduce tie-point grid size and tie-point window size (in data_import.py)
-#    - adjust the 'generic_land_mask' switch
-#    - adjust the coregistration method (global or local)
-
-
-#%% 2.1) Select georectified/merged image for classification, reference shoreline and transects
-
-add_ref_features(settings, plot = False, redo_features = False)
-
-
-#%% 2.2) Extract shoreline data
-    
-# Note that output shoreline .geojson file for use in GIS software is not todally corrected
-    
-shoreline_data = extract_shorelines(outputs, settings, 
-                                    
-        # del_index = True will delete water index .tif files once used to save space
-        del_index = True, 
-
-        # set as true to replace previously extracted shorelines
-        rerun_shorelines = True,
-
-        # reclassify = True will reclassify images if they have been classified previously
-            # useful when running again with a new classifier
-            # use False to save time on re-runs with the same classifier to save processing time
-        reclassify = True)
- 
- # Plot parameters and layout can be adjusted in ...coastsat_ps/plotting.py
-
-
-#%% 3) Manual error detection
-
-    # Option 1 - All images pass, creates a csv in the outputs folder: ...CoastSat.PlanetScope/outputs/SITE/shoreline outputs/COREG/NmB/Peak Fraction/shoreline_filter.csv"
-        # manual_filter & load_csv = False
-
-    # Option 2 - DEFAULT - popup window to keep or discard images (saves choices as a csv to file from option 1):
-        # manual_filter = True & load_csv = False    
-
-    # Option 3 - loads and applies the csv saved from option 1 or 2. This file can be manually updated with a text editor prior to running. 
-        # manual_filter = False & load_csv = True
-         
-shoreline_data = filter_shorelines(settings,
-        manual_filter = True, load_csv = False)
-
-
-#%% 4) Shoreline transect intersction and csv export
-
+#%% Transect intersection and csv export
 sl_csv = compute_intersection(shoreline_data, settings)
 
+# TODO: Want to see if I can adjust it to be using newer version of python, allowing for pyfes
 
-#%% 5) Tidal Correction & filtering
-
+#%% Tide correction
 tide_settings = {
     # select beach slope as a generic value, or list of values corresponding to each transect
         # Transect specific beach slope values can be extracted with the CoastSat beach slope tool https://github.com/kvos/CoastSat.slope
@@ -171,9 +103,7 @@ tide_settings = {
 
 sl_csv_tide = tidal_correction(settings, tide_settings, sl_csv)
 
-
-#%% 6) Plot transects
-    
+#%% Plot transects
 for transect in settings['transects_load'].keys():
     ts_plot_single(settings, sl_csv_tide, transect, 
                    
@@ -183,10 +113,3 @@ for transect in settings['transects_load'].keys():
         
         # set x_scale for x-axis labels ['days', 'months', 'years']
         x_scale = 'years')
-    
-  
-#%% Approximate times (for ~1000 downloaded images)
-    # 1.1) 20min
-    # 1.3) 2.5h coregistration, 35min merge
-    # 2.2) 1h classification, 50min shoreline extraction
-

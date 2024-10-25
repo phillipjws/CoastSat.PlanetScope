@@ -183,7 +183,7 @@ def ref_im_select(settings):
         mask_comb = (zero_mask + nan_mask + cloud_mask) != 0
         
         # rescale image intensity for display purposes
-        im_RGB = rescale_image_intensity(im_ms[:,:,[2,1,0]], mask_comb, 99.9)
+        im_RGB = rescale_image_intensity(im_ms[:,:,[6,3,1]], mask_comb, 99.9)
 
         # plot the image RGB on a figure
         ax.axis('off')
@@ -293,7 +293,7 @@ def merge_im_select(settings):
             continue
 
         # rescale image intensity for display purposes
-        im_RGB = rescale_image_intensity(im_ms[:,:,[2,1,0]], mask_comb, 99.9)
+        im_RGB = rescale_image_intensity(im_ms[:,:,[6,3,1]], mask_comb, 99.9)
 
         # plot the image RGB on a figure
         ax.axis('off')
@@ -403,7 +403,7 @@ def get_reference_sl(settings, redo_features=False):
         im_ms, nan_mask = get_ps_data(fn)
         
         # rescale image intensity for display purposes
-        im_RGB = rescale_image_intensity(im_ms[:,:,[2,1,0]], nan_mask, 99.9)
+        im_RGB = rescale_image_intensity(im_ms[:,:,[6,3,1]], nan_mask, 99.9)
 
         # plot the image RGB on a figure
         ax.axis('off')
@@ -450,7 +450,7 @@ def get_reference_sl(settings, redo_features=False):
                 phi = 0
                 deltax = pts_world[k+1,0] - pts_world[k,0]
                 deltay = pts_world[k+1,1] - pts_world[k,1]
-                phi = np.pi/2 - np.math.atan2(deltax, deltay)
+                phi = np.pi/2 - np.arctan2(deltax, deltay)
                 tf = transform.EuclideanTransform(rotation=phi, translation=pts_world[k,:])
                 pts_world_interp = np.append(pts_world_interp,tf(pt_coords), axis=0)
             pts_world_interp = np.delete(pts_world_interp,0,axis=0)
@@ -553,7 +553,7 @@ def get_transects(settings):
         im_ms, nan_mask = get_ps_data(fn)
         
         # rescale image intensity for display purposes
-        im_RGB = rescale_image_intensity(im_ms[:,:,[2,1,0]], nan_mask, 99.9)
+        im_RGB = rescale_image_intensity(im_ms[:,:,[6,3,1]], nan_mask, 99.9)
 
         # plot the image RGB on a figure
         ax.axis('off')
@@ -1043,7 +1043,7 @@ def transects_to_gdf(transects):
         if i == 0:
             gdf_all = gdf
         else:
-            gdf_all = gdf_all.append(gdf)
+            gdf_all = pd.concat([gdf_all, gdf], ignore_index=True)
             
     return gdf_all
 

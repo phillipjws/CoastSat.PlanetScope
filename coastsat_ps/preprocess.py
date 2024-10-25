@@ -21,6 +21,7 @@ from coastsat_ps.preprocess_tools import (save_mask, TOA_conversion, merge_crop,
                                           get_raster_bounds, gdal_subprocess, 
                                           zero_to_nan, load_udm, create_land_mask, create_folder)
 from coastsat_ps.plotting import check_land_mask, plot_inputs
+from coastsat_ps.shoreline_tools import get_reference_sl_from_geojson
 
 import warnings
 warnings.simplefilter(action='ignore', category=UserWarning)
@@ -98,7 +99,7 @@ def add_ref_features(settings, plot=True, redo_features = False):
                 settings['ref_merge_im'] = text_file.read()
         
     # Digitise reference shoreline
-    get_reference_sl(settings, redo_features)
+    get_reference_sl_from_geojson(settings)
     
     # Import transects
     if settings['transects'] == False:

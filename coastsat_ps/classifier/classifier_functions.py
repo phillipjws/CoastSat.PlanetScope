@@ -363,7 +363,7 @@ def label_images(metadata,settings):
                 im_viz = selector_land.array
                 selector_land.im_bool = selector_land.im_bool.astype(bool)
                 im_labels[selector_land.im_bool] = settings['labels']['other land features']  
-                
+
                 # save labelled image
                 ax.set_title(filename)
                 fig.canvas.draw_idle()                         

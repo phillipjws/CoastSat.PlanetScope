@@ -9,6 +9,9 @@ import skimage.morphology as morphology
 import skimage.measure as measure
 import geopandas as gpd
 
+import imageio
+import pickle
+
 from astropy.convolution import convolve
 from shapely.geometry import LineString
 from shapely import geometry
@@ -706,12 +709,16 @@ def output_to_gdf_PL(output):
             continue
         else:
             # save the geometry + attributes
-            geom = geometry.LineString(output['shorelines'][i])
+            coords = output['shorelines'][i]
+            if len(coords) > 1:
+                coords = coords[:-1]
+            geom = geometry.LineString(coords)
+            print(f"Line is closed: {geom.is_ring}")
             gdf = gpd.GeoDataFrame(geometry=gpd.GeoSeries(geom))
             gdf.index = [i]
             gdf.loc[i,'timestamp'] = output['timestamp utc'][i].strftime('%Y-%m-%d %H:%M:%S')
             # gdf.loc[i,'satname'] = output['satname'][i]
-            #gdf.loc[i,'geoaccuracy'] = output['geoaccuracy'][i]
+            # gdf.loc[i,'geoaccuracy'] = output['geoaccuracy'][i]
             gdf.loc[i,'cloud_cover'] = output['cloud_cover'][i]
             gdf.loc[i,'aoi_coverage'] = output['aoi_cover'][i]
             gdf.loc[i,'ps_sat_name'] = output['ps_sat_name'][i]
@@ -721,7 +728,66 @@ def output_to_gdf_PL(output):
             if counter == 0:
                 gdf_all = gdf
             else:
-                gdf_all = gdf_all.append(gdf)
+                gdf_all = pd.concat([gdf_all, gdf], ignore_index=True)
             counter = counter + 1
             
     return gdf_all
+
+def make_animation_mp4(filepath_images, fps, fn_out):
+    """
+    Creates an MP4 timelapse animation from saved PNG files.
+
+    Arguments:
+    ---------
+    filepath_images : str
+        Directory path containing the PNG files.
+    fps : int
+        Frames per second for the animation.
+    fn_out : str
+        Path to save the output MP4 file.
+    """
+    with imageio.get_writer(fn_out, mode='I', fps=fps) as writer:
+        # List and sort all .png files chronologically
+        filenames = [f for f in os.listdir(filepath_images) if f.endswith('.png')]
+        filenames = sorted(filenames, key=lambda x: os.path.getmtime(os.path.join(filepath_images, x)))
+
+        for filename in filenames:
+            image = imageio.imread(os.path.join(filepath_images, filename))
+            writer.append_data(image)
+    print(f'Animation has been generated (using {fps} frames per second) and saved at {fn_out}')
+
+
+def get_reference_sl_from_geojson(settings):
+    sitename = settings['site_name']
+    output_epsg = settings['output_epsg']
+    filename_geojson = sitename + '.geojson'
+    filename_pkl = sitename + '_reference_shoreline.pkl'
+    fp_ref_shoreline_geojson = os.path.join(settings['reference_shoreline_folder'], filename_geojson)
+    fp_ref_shoreline_pkl = os.path.join(settings['reference_shoreline_folder'], filename_pkl)
+
+    if os.path.exists(fp_ref_shoreline_geojson):
+        print('Reference shoreline found in GeoJSON. Loading coordinates...')
+        refsl_geojson = gpd.read_file(fp_ref_shoreline_geojson)
+        refsl_geojson = refsl_geojson.to_crs(epsg=output_epsg)
+        ref_sl = np.array(refsl_geojson.iloc[0]['geometry'].coords)
+        print(f'Reference shoreline coordinates are in epsg: {refsl_geojson.crs.to_epsg()}')
+
+        if not os.path.exists(fp_ref_shoreline_pkl):
+            with open(fp_ref_shoreline_pkl, 'wb') as f:
+                pickle.dump(ref_sl, f)
+            print(f'Reference shoreline also saved as .pkl at {fp_ref_shoreline_pkl}')
+
+        settings['reference_shoreline'] = ref_sl
+    else:
+        print("No GeoJSON reference shoreline found.")
+        return None
+
+
+def get_point_from_geojson(settings):
+    sitename = settings['sitename']
+    filename = sitename + '.geojson'
+    fp_tide_point = os.path.join(settings['tide_point_folder'], filename)
+
+    points_geojson = gpd.read_file(fp_tide_point)
+    coords = [points_geojson.geometry.x.iloc[0], points_geojson.geometry.y.iloc[0]]
+    return coords

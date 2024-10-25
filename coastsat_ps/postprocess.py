@@ -190,7 +190,7 @@ def ts_plot_single(settings, sl_csv, transect, savgol, x_scale):
                   max(ps_data.index)+(max(ps_data.index)-min(ps_data.index))/40])
 
     # Set grid and axis label ticks
-    ax.grid(b=True, which='major', linestyle='-')
+    ax.grid(visible=True, which='major', linestyle='-')
     ax.yaxis.set_major_locator(ticker.MultipleLocator(5))
     ax.tick_params(labelbottom=False, bottom = False)
     ax.tick_params(axis = 'y', which = 'major', labelsize = 6)

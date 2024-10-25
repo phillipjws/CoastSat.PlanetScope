@@ -66,7 +66,7 @@ def create_crop_mask(im_classif, im_ref_buffer, settings):
     crop_mask = (class_mask + im_ref_buffer) >0
     
     # Smooth classified edges (thin other removed)
-    out_mask = morphology.binary_opening(crop_mask,morphology.square(6)) # perform image opening
+    out_mask = morphology.binary_opening(crop_mask,morphology.square(10)) # perform image opening
 
     # Add buffer to sl edge
     if settings['thin_beach_fix'] == True:
@@ -282,7 +282,7 @@ def batch_threshold_sl(outputs, settings):
             
             # Process shoreline for plotting
             sl_pix = convert_world2pix(shoreline_single, georef) 
-            im_RGB = rescale_image_intensity(im_ms[:,:,[2,1,0]], comb_mask, 99.9)
+            im_RGB = rescale_image_intensity(im_ms[:,:,[6,3,1]], comb_mask, 99.9)
 
             # Plot shorelines and histogram
             if settings['generic_sl_region']:
