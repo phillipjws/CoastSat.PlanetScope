@@ -6,6 +6,7 @@ import copy
 import matplotlib.ticker as ticker
 import matplotlib.dates as mdates
 import os
+from sklearn import linear_model
 
 from coastsat_ps.preprocess_tools import create_folder
 
@@ -125,113 +126,92 @@ def tidal_correction(settings, tide_settings, sl_csv):
 
 
 #%% Single transect plot
-
 def ts_plot_single(settings, sl_csv, transect, savgol, x_scale):
     
-    # import PS data and remove nan
-    ps_data = copy.deepcopy(sl_csv[['Date',transect]])
-    ps_data.loc[:,'Date'] = pd.to_datetime(sl_csv.loc[:,'Date'], utc = True)
-    ps_data = ps_data.set_index('Date')
+    # Import PS data and remove NaN values
+    ps_data = copy.deepcopy(sl_csv[['Date', transect]])
+    ps_data['Date'] = pd.to_datetime(ps_data['Date'], utc=True)
+    ps_data.set_index('Date', inplace=True)
     ps_data = ps_data[np.isfinite(ps_data[transect])]
     mean_ps = np.nanmean(ps_data[transect])
     
-    # Initialise figure
-    fig = plt.figure(figsize=(8,3))
-    ax = fig.add_subplot(111)
-    ax.set_title(settings['site_name'] + ' Transect ' + transect + ' Timeseries Plot')
-    ax.set(ylabel='Chainage [m]')
-    ax.set(xlabel='Date [UTC]')      
-          
-    # Mean Position line
-    l2 = ax.axhline(y = mean_ps, color='k', linewidth=0.75, label='Mean PS Position', zorder = 2)
-
-    # Number of days
-    no_days = (max(ps_data.index)-min(ps_data.index)).days
-
-    #savgol = False
-    if savgol == True:
+    # Initialize main figure and axes for timeseries plot
+    fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(10, 12))
+    fig.suptitle(settings['site_name'] + ' Transect ' + transect + ' Timeseries Analysis')
+    
+    # Timeseries Plot
+    ax1.set_title('Original Timeseries')
+    ax1.set(ylabel='Chainage [m]', xlabel='Date [UTC]')
+    ax1.axhline(y=mean_ps, color='k', linewidth=0.75, label='Mean PS Position', zorder=2)
+    ax1.fill_between(ps_data.index, ps_data[transect], y2=mean_ps, alpha=0.25, color='grey', label='PS Data', zorder=3)
+    l1, = ax1.plot(ps_data.index, ps_data[transect], linewidth=0.75, alpha=0.6, color='k', label='PS Data', zorder=4)
+    
+    # Apply Savitzky-Golay filter if requested
+    if savgol:
+        no_days = (max(ps_data.index) - min(ps_data.index)).days
         if no_days < 16:
             raise Exception('SavGol filter requires >15 days in timeseries')
         
-        # PS plot
-        l1 = ax.fill_between(ps_data.index, ps_data[transect], y2 = mean_ps, alpha = 0.35, color = 'grey', label='PS Data', zorder = 3)
-        #l1 = ax.scatter(ps_data.index, ps_data[transect], color = 'k', label='PS Data', marker = 'x', s = 10, linewidth = 0.5, zorder = 1)#, alpha = 0.75)
-        l1, = ax.plot(ps_data.index, ps_data[transect], linewidth = 0.75, alpha = 0.4, color = 'k', label='PS Data', zorder = 4)
-
-        # savgol plot rolling mean
         roll_days = 15
-        interp_PL = pd.DataFrame(ps_data.resample('D').mean().interpolate(method = 'linear'))
-        interp_PL_sav = signal.savgol_filter(interp_PL[np.isfinite(interp_PL)][transect], roll_days, 2)
-        l3, = ax.plot(interp_PL.index, interp_PL_sav, linewidth = 0.75, alpha = 0.7, color = 'r', label=str(roll_days) + ' Day SavGol Filter', zorder = 5)
-        #l3 = ax.fill_between(interp_PL.index, interp_PL[ts], y2 = mean_GT, alpha = 0.35, color = 'grey', label=str(roll_days) + ' Day SavGol Filter', zorder = 0)
+        interp_PL = ps_data.resample('D').mean().interpolate(method='linear')
+        interp_PL_sav = signal.savgol_filter(interp_PL[transect], roll_days, 2)
+        ax1.plot(interp_PL.index, interp_PL_sav, linewidth=0.75, alpha=0.7, color='r', 
+                 label=str(roll_days) + ' Day SavGol Filter', zorder=5)
     
-        # Set legend
-        ax.legend(handles = [l1, l2, l3], ncol = 3, bbox_to_anchor = (0,1), loc='upper left', framealpha = 1, fontsize = 'xx-small')
-    else:
-        # PS plot
-        l1 = ax.fill_between(ps_data.index, ps_data[transect], y2 = mean_ps, alpha = 0.25, color = 'grey', label='PS Data', zorder = 3)
-        l1, = ax.plot(ps_data.index, ps_data[transect], linewidth = 0.75, alpha = 0.6, color = 'k', label='PS Data', zorder = 4)
+    # Linear trend line (in m/year)
+    X = np.array((ps_data.index - ps_data.index[0]).days / 365).reshape(-1, 1)
+    y = ps_data[transect].values.reshape(-1, 1)
+    model = linear_model.LinearRegression().fit(X, y)
+    slope = model.coef_[0][0]
+    ax1.plot(ps_data.index, slope * X + model.intercept_, color='blue', linewidth=0.75, linestyle='--', 
+             label=f"Trend: {slope:.4f} m/year")
     
-        # Set legend
-        ax.legend(handles = [l1, l2], ncol = 3, bbox_to_anchor = (0,1), loc='upper left', framealpha = 1, fontsize = 'xx-small')
-
+    ax1.legend(ncol=3, fontsize='small')
+    ax1.grid(visible=True, which='major', linestyle='-')
     
-    # Find axis bounds
-    if abs(max(ps_data[transect]))-mean_ps > mean_ps-abs(min(ps_data[transect])):
-        bound = abs(max(ps_data[transect]))-mean_ps+5
-    else:
-        bound = mean_ps-abs(min(ps_data[transect]))+5
+    # Monthly Averages Plot
+    monthly_data = ps_data.resample('M').mean()
+    # Drop NaNs for linear regression
+    monthly_data_clean = monthly_data[transect].dropna()
+    monthly_X = np.array((monthly_data_clean.index - monthly_data_clean.index[0]).days / 365).reshape(-1, 1)
+    monthly_y = monthly_data_clean.values.reshape(-1, 1)
     
-    # Set axis limits
-    ax.set_ylim(top = mean_ps + bound)
-    ax.set_ylim(bottom = mean_ps - bound)
-
-    ax.set_xlim([min(ps_data.index)-(max(ps_data.index)-min(ps_data.index))/40,
-                  max(ps_data.index)+(max(ps_data.index)-min(ps_data.index))/40])
-
-    # Set grid and axis label ticks
-    ax.grid(visible=True, which='major', linestyle='-')
-    ax.yaxis.set_major_locator(ticker.MultipleLocator(5))
-    ax.tick_params(labelbottom=False, bottom = False)
-    ax.tick_params(axis = 'y', which = 'major', labelsize = 6)
-        
-    if x_scale == 'years':
-        ax.xaxis.set_major_locator(mdates.YearLocator())
-        ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y'))
-        #ax.set_yticklabels([])
-        ax.tick_params(labelbottom=True, bottom = True) 
-        ax.xaxis.set_minor_locator(mdates.MonthLocator())
-    elif x_scale == 'months':
-        if no_days > 200:
-            raise Exception('Too many dates to render months properly, try x_ticks = years')
-        else:
-            ax.xaxis.set_major_locator(mdates.MonthLocator())
-            ax.xaxis.set_major_formatter(mdates.DateFormatter('%b'))
-            ax.tick_params(labelbottom=True, bottom = True) 
-            ax.xaxis.set_minor_locator(mdates.DayLocator())
-    elif x_scale == 'days':
-        if no_days > 100:
-            raise Exception('Too many dates to render days properly, try x_ticks = years')
-        elif no_days > 60:
-            raise Exception('Too many dates to render days properly, try x_ticks = months')
-        else:
-            ax.xaxis.set_major_locator(mdates.MonthLocator())
-            ax.xaxis.set_major_formatter(mdates.DateFormatter('%b'))
-            ax.tick_params(labelbottom=True, bottom = True) 
-            ax.xaxis.set_minor_locator(mdates.DayLocator())
-            ax.xaxis.set_minor_formatter(mdates.DateFormatter('%d'))
-    else:
-        raise Exception('Select either years, months or days for x_scale input')
-      
-
-    # save plot
+    # Fit linear model only on non-NaN data
+    monthly_model = linear_model.LinearRegression().fit(monthly_X, monthly_y)
+    monthly_slope = monthly_model.coef_[0][0]
+    ax2.set_title('Monthly Averaged Timeseries')
+    ax2.plot(monthly_data.index, monthly_data[transect], color='orange', label='Monthly Average', marker='o', linestyle='-')
+    ax2.plot(monthly_data_clean.index, monthly_slope * monthly_X + monthly_model.intercept_, color='blue', linestyle='--',
+             label=f"Monthly Trend: {monthly_slope:.4f} m/year")
+    
+    ax2.set(ylabel='Monthly Chainage [m]', xlabel='Date [UTC]')
+    ax2.legend(fontsize='small')
+    ax2.grid(visible=True, which='major', linestyle='-')
+    
+    # Seasonal Averages Plot
+    seasonal_data = ps_data.resample('Q').mean()  # Quarterly for approximate seasonal representation
+    # Drop NaNs for linear regression
+    seasonal_data_clean = seasonal_data[transect].dropna()
+    seasonal_X = np.array((seasonal_data_clean.index - seasonal_data_clean.index[0]).days / 365).reshape(-1, 1)
+    seasonal_y = seasonal_data_clean.values.reshape(-1, 1)
+    
+    # Fit linear model only on non-NaN data
+    seasonal_model = linear_model.LinearRegression().fit(seasonal_X, seasonal_y)
+    seasonal_slope = seasonal_model.coef_[0][0]
+    ax3.set_title('Seasonal Averaged Timeseries')
+    ax3.plot(seasonal_data.index, seasonal_data[transect], color='green', label='Seasonal Average', marker='o', linestyle='-')
+    ax3.plot(seasonal_data_clean.index, seasonal_slope * seasonal_X + seasonal_model.intercept_, color='blue', linestyle='--',
+             label=f"Seasonal Trend: {seasonal_slope:.4f} m/year")
+    
+    ax3.set(ylabel='Seasonal Chainage [m]', xlabel='Date [UTC]')
+    ax3.legend(fontsize='small')
+    ax3.grid(visible=True, which='major', linestyle='-')
+    
+    # Save plot
     save_folder = os.path.join(settings['sl_thresh_ind'], 'Timeseries Plots')
-    create_folder(save_folder)    
+    os.makedirs(save_folder, exist_ok=True)
+    save_file = os.path.join(save_folder, 'transect_' + transect + '_timeseries_analysis.png')
     fig.tight_layout()
-    save_file = os.path.join(save_folder, 'transect_' + transect + '_timeseries.png')
     fig.savefig(save_file, dpi=200)
-
+    
     plt.show(block=False)
-
-
-

@@ -512,7 +512,7 @@ def get_reference_sl(settings, redo_features=False):
         #     if k == 0:
         #         gdf_all = gdf
         #     else:
-        #         gdf_all = gdf_all.append(gdf)
+        #         gdf_all = pd.concat([gdf_all, gdf], ignore_index=True)
         # gdf_all.crs = {'init':'epsg:'+str(image_epsg)}
         # # convert from image_epsg to user-defined coordinate system
         # gdf_all = gdf_all.to_crs({'init': 'epsg:'+str(dest_epsg)})
@@ -1066,13 +1066,17 @@ def transects_from_geojson(filename):
     Source:
         https://github.com/kvos/CoastSat
         
-    """  
-    
+    """
     gdf = gpd.read_file(filename)
-    transects = dict([])
+    
+    transects = {}
     for i in gdf.index:
-        transects[gdf.loc[i,'name']] = np.array(gdf.loc[i,'geometry'].coords)
+        # Reverse the order of the coordinates
+        transect_coords = np.array(gdf.loc[i, 'geometry'].coords)
+        reversed_coords = transect_coords[::-1]  # Reverse the coordinates
         
-    print('%d transects have been loaded' % len(transects.keys()))
+        transects[gdf.loc[i, 'name']] = reversed_coords
+
+    print(f"{len(transects.keys())} transects have been loaded and reversed")
 
     return transects

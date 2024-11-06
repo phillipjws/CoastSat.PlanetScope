@@ -713,7 +713,7 @@ def output_to_gdf_PL(output):
             if len(coords) > 1:
                 coords = coords[:-1]
             geom = geometry.LineString(coords)
-            print(f"Line is closed: {geom.is_ring}")
+            # print(f"Line is closed: {geom.is_ring}")
             gdf = gpd.GeoDataFrame(geometry=gpd.GeoSeries(geom))
             gdf.index = [i]
             gdf.loc[i,'timestamp'] = output['timestamp utc'][i].strftime('%Y-%m-%d %H:%M:%S')
@@ -748,18 +748,18 @@ def make_animation_mp4(filepath_images, fps, fn_out):
     """
     with imageio.get_writer(fn_out, mode='I', fps=fps) as writer:
         # List and sort all .png files chronologically
-        filenames = [f for f in os.listdir(filepath_images) if f.endswith('.png')]
-        filenames = sorted(filenames, key=lambda x: os.path.getmtime(os.path.join(filepath_images, x)))
+        filenames = os.listdir(filepath_images)
+        filenames = np.sort(filenames)
 
-        for filename in filenames:
-            image = imageio.imread(os.path.join(filepath_images, filename))
+        for i in range(len(filenames)):
+            image = imageio.imread(os.path.join(filepath_images, filenames[i]))
             writer.append_data(image)
     print(f'Animation has been generated (using {fps} frames per second) and saved at {fn_out}')
 
 
 def get_reference_sl_from_geojson(settings):
     sitename = settings['site_name']
-    output_epsg = settings['output_epsg']
+    output_epsg = settings['output_epsg_num']
     filename_geojson = sitename + '.geojson'
     filename_pkl = sitename + '_reference_shoreline.pkl'
     fp_ref_shoreline_geojson = os.path.join(settings['reference_shoreline_folder'], filename_geojson)
@@ -769,7 +769,22 @@ def get_reference_sl_from_geojson(settings):
         print('Reference shoreline found in GeoJSON. Loading coordinates...')
         refsl_geojson = gpd.read_file(fp_ref_shoreline_geojson)
         refsl_geojson = refsl_geojson.to_crs(epsg=output_epsg)
-        ref_sl = np.array(refsl_geojson.iloc[0]['geometry'].coords)
+        shorelines = [np.array(geom.coords) for geom in refsl_geojson['geometry']]
+        
+        # Sort shorelines by proximity (based on their starting and ending points)
+        def distance_between_geoms(geom1, geom2):
+            # Distance between endpoint of geom1 and start point of geom2
+            return np.linalg.norm(geom1[-1] - geom2[0])
+        
+        sorted_shorelines = [shorelines.pop(0)]  # Start with the first shoreline
+        
+        while shorelines:
+            last_geom = sorted_shorelines[-1]
+            distances = [distance_between_geoms(last_geom, geom) for geom in shorelines]
+            next_geom = shorelines.pop(np.argmin(distances))  # Pick the closest geom
+            sorted_shorelines.append(next_geom)
+
+        ref_sl = np.vstack(sorted_shorelines)
         print(f'Reference shoreline coordinates are in epsg: {refsl_geojson.crs.to_epsg()}')
 
         if not os.path.exists(fp_ref_shoreline_pkl):
@@ -784,7 +799,7 @@ def get_reference_sl_from_geojson(settings):
 
 
 def get_point_from_geojson(settings):
-    sitename = settings['sitename']
+    sitename = settings['site_name']
     filename = sitename + '.geojson'
     fp_tide_point = os.path.join(settings['tide_point_folder'], filename)
 

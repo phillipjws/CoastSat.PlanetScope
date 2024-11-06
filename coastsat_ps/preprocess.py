@@ -104,7 +104,7 @@ def add_ref_features(settings, plot=True, redo_features = False):
     # Import transects
     if settings['transects'] == False:
         settings['geojson_file'] = os.path.join(settings['run_input_folder'], 
-                                                  settings['site_name'] + '_transects.geojson')
+                                                  settings['site_name'] + '_TRANSECTS.geojson')
         get_transects(settings)
     else:
         print('Transects loaded')

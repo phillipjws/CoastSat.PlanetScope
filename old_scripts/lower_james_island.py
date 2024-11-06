@@ -7,14 +7,12 @@ from coastsat_ps.preprocess import (data_extract, pre_process, select_ref_image,
 from coastsat_ps.postprocess import ts_plot_single
 from coastsat_ps.shoreline_tools import make_animation_mp4, get_point_from_geojson
 from coastsat_ps import SDS_slope
+from coastsat_ps.plotting import plot_inputs
 import pyfes
 import os
-import numpy as np
-import pandas as pd
 import matplotlib.pyplot as plt
 from datetime import datetime
 import pytz
-import copy
 
 #%% User Input Settings
 settings = {
@@ -40,8 +38,10 @@ settings = {
     'min_beach_area': 50*50, 
     'min_length_sl': 400,
     'GDAL_location': r'C:\Users\psteeves\AppData\Local\miniforge3\envs\coastsat_ps\Library\bin',
+    # 'georef_im': r'U:\PS_Imagery\Lower_James_Island\20200730_182459_42_2271_3B_AnalyticMS_8b_clip.tif',
+    'georef_im': False,
     
-    'water_index': 'NmCB_Norm'
+    'water_index': 'NmB'
 }
 
 outputs = initialise_settings(settings)
@@ -53,10 +53,10 @@ data_extract(settings, outputs)
 select_ref_image(settings, replace_ref_im=False)
 
 #%% Image coreg and scene merging, run manually
-pre_process(settings, outputs, del_files_int=True, rerun_preprocess=True)
+pre_process(settings, outputs, del_files_int=True, rerun_preprocess=False)
 
 #%% Add reference Features
-add_ref_features(settings, plot=False, redo_features=False)
+add_ref_features(settings, plot=True, redo_features=True)
 
 #%% Extract shoreline data
 shoreline_data = extract_shorelines(outputs, settings, del_index=False, rerun_shorelines=True, reclassify=True)
@@ -65,10 +65,10 @@ shoreline_data = extract_shorelines(outputs, settings, del_index=False, rerun_sh
 shoreline_data = filter_shorelines(settings, manual_filter=False, load_csv=False)
 
 #%% Save an animation
-filepath_images = settings['index_png_out']
-fn_out = settings['output_folder']
-fps = 4
-make_animation_mp4(filepath_images, fps, fn_out)
+# filepath_images = settings['index_png_out']
+# fn_out = os.path.join(settings['output_folder'], f"{settings['site_name']}_animation_shorelines.mp4")
+# fps = 4
+# make_animation_mp4(filepath_images, fps, fn_out)
 
 #%% Transect intersection and csv export
 sl_csv = compute_intersection(shoreline_data, settings)

@@ -26,7 +26,6 @@ def initialise_settings(settings):
     
     ### Coregistration
     # Georectified TOA reference image path (in CoastSat.PlanetScope/user_inputs folder)
-    settings['georef_im'] = False #'Narrabeen_im_ref.tif', # Possible to provide a reference image filepath for coregistration instead of manually selecting from a popup window
     # Tie point averaged x/y local shift for coregistration
     settings['local_avg'] = True
     # Tie-point grid spacing (pixels)
@@ -36,11 +35,11 @@ def initialise_settings(settings):
     # Error filtering level (0-3: lower number less likely to fail but less accurate)
     settings['filter_level'] = 2 #3 often fails, bug?
     # Workaround for arosics inability to coregister images with different CRS. Reprojects all TOA/mask files to output epsg first. 
-    settings['arosics_reproject'] = False
+    settings['arosics_reproject'] = True
     # GDAL warp CRS re-sampling method. 
         # 'near' is the fastest/default but images may be jagged as no is smoothing applied. 'cubic' & 'cubicspline' look the best but are slowest. 'bilinear' is a good middle ground. 
         # Note that re-sampling using cubic, cubicspline and bilinear options may cause issues with arosics. 
-    settings['gdal_method'] = 'cubicspline'
+    settings['gdal_method'] = 'cubic'
     # Land mask cleaning smoothing parameters - choose lower values if land mask does not cover thin land regions (ie small barrier islands)
     settings['land_mask_smoothing_1'] = 15 # pixels (so x3 for metres)
     settings['land_mask_smoothing_2'] = 10 # pixels (so x3 for metres)
@@ -117,12 +116,15 @@ def initialise_settings(settings):
     settings['sl_threshold'] = create_folder(os.path.join(settings['sl_png_coreg'], settings['water_index']))
     settings['sl_thresh_ind'] = create_folder(os.path.join(settings['sl_threshold'], settings['thresholding']))      # shoreline data out folder
     settings['index_png_out'] = create_folder(os.path.join(settings['sl_thresh_ind'], 'Shoreline plots'))
+    settings['beach_slope_out'] = create_folder(os.path.join(settings['output_folder'], 'beach slope estimation'))
 
     
     # Create filepaths
     settings['user_input_folder'] = os.path.join(os.getcwd(), 'user_inputs')
     settings['reference_shoreline_folder'] = os.path.join(settings['user_input_folder'], 'reference_shorelines')
     settings['tide_point_folder'] = os.path.join(settings['user_input_folder'], 'tide_points')
+    settings['transects_folder'] = os.path.join(settings['user_input_folder'], 'transects')
+    settings['ref_im_folder'] = os.path.join(settings['user_input_folder'], 'ref_im')
     settings['run_input_folder'] = create_folder(os.path.join(settings['output_folder'], 'input_data'))
     
     settings['sl_pkl_file'] = os.path.join(settings['sl_thresh_ind'], settings['site_name'] + '_' + settings['water_index'] + '_' + settings['thresholding'] + '_shorelines.pkl')      # Results out
@@ -131,6 +133,7 @@ def initialise_settings(settings):
 
  
     # Initialise settings
+    settings['output_epsg_num'] = settings['output_epsg']
     settings['output_epsg'] = 'EPSG:' + settings['output_epsg']
     settings['pixel_size'] = 3
     settings['min_beach_area_pixels'] = np.ceil(settings['min_beach_area']/settings['pixel_size']**2)
@@ -146,7 +149,7 @@ def initialise_settings(settings):
 
     # Import transects
     if settings['transects'] != False:
-        settings['geojson_file'] = os.path.join(settings['user_input_folder'], settings['transects'])
+        settings['geojson_file'] = os.path.join(settings['transects_folder'], settings['transects'])
         settings['transects_load'] = transects_from_geojson(settings['geojson_file'])
 
 
@@ -159,7 +162,7 @@ def initialise_settings(settings):
             settings['coreg_out'] = create_folder(os.path.join(settings['toa_out'],'global_coreg_data'))
 
         if settings['georef_im'] != False:
-            settings['georef_im_path'] = os.path.join(settings['user_input_folder'], settings['georef_im'])
+            settings['georef_im_path'] = os.path.join(settings['ref_im_folder'], settings['georef_im'])
 
 
     # Update water index settings [band 1, band 2, normalised bool]
@@ -190,6 +193,8 @@ def initialise_settings(settings):
         settings['water_index_list'] = [5, 6, 'ratio', '_Yellow_Red_Ratio.tif']
     elif settings['water_index'] == 'NmG':
         settings['water_index_list'] = [8, 3, 'difference', '_NmG.tif']
+    elif settings['water_index'] == 'NmG2':
+        settings['water_index_list'] = [8, 4, 'difference', '_NmG2.tif']
     elif settings['water_index'] == 'NmB_Norm':
         settings['water_index_list'] = [8, 2, 'normalized_difference', '_NmB_norm.tif']
     elif settings['water_index'] == 'NmB':

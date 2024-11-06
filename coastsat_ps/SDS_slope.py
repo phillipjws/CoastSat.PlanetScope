@@ -41,8 +41,8 @@ def compute_tide(coords,date_range,time_step,ocean_tide,load_tide):
     lons = coords[0]*np.ones(len(dates))
     lats = coords[1]*np.ones(len(dates))
     # compute heights for ocean tide and loadings
-    ocean_short, ocean_long, flags_ocean = pyfes.evaluate_tide(ocean_tide,dates_np,lons,lats,num_threads=1)
-    load_short, load_long, flags_load = pyfes.evaluate_tide(load_tide,dates_np,lons,lats,num_threads=1)
+    ocean_short, ocean_long, flags_ocean = pyfes.evaluate_tide(ocean_tide,dates_np,lons,lats)
+    load_short, load_long, flags_load = pyfes.evaluate_tide(load_tide,dates_np,lons,lats)
     print("Flags (Ocean):", np.unique(flags_ocean))
     print("Flags (Load):", np.unique(flags_load))
     # sum up all components and convert from cm to m
@@ -232,7 +232,15 @@ def power_spectrum(t,y,freqs,idx_cut):
     model = LombScargle(t, y, dy=None, fit_mean=True, center_data=True, nterms=1, normalization='psd')
     ps = model.power(freqs)
     # integrate the entire power spectrum
-    E = sintegrate.simpson(ps, x=freqs)
+    try:
+        E = sintegrate.simpson(ps, x=freqs)
+    except ValueError:
+        # If dimensions are incompatible, fall back to np.trapz as a workaround
+        if len(freqs) > 1:
+            E = np.trapz(ps, x=freqs)
+        else:
+            # Handle single-element cases if `freqs` has only one frequency
+            E = ps[0] * (freqs[1] - freqs[0]) if len(freqs) > 1 else ps[0]
     if len(idx_cut) == 0:
         idx_cut = np.ones(freqs.size).astype(bool)
     # integrate only frequencies above cut-off
@@ -278,7 +286,7 @@ def find_tide_peak(dates,tide_level,settings):
         ax = fig.add_subplot(111)
         ax.grid(linestyle=':', color='0.5')
         ax.plot(freqs,ps_tide)
-        ax.set_title('Power Spectrum Density of tide time-series - $\Delta t$ = %d days (Nyquist limit = %d days)'%(settings['n_days'],2*settings['n_days']),
+        ax.set_title(r'Power Spectrum Density of tide time-series - $\Delta t$ = %d days (Nyquist limit = %d days)'%(settings['n_days'],2*settings['n_days']),
                      x=0, ha='left')
         ax.set(xticks=[(days_in_year*seconds_in_day)**-1, (30*seconds_in_day)**-1, (16*seconds_in_day)**-1, (8*seconds_in_day)**-1],
                        xticklabels=['1y','1m','16d','8d'])
@@ -302,6 +310,7 @@ def integrate_power_spectrum(dates_rand,tsall,settings,key=None):
     time_step = settings['n_days']*seconds_in_day
     freqs = frequency_grid(t,time_step,settings['n0'])    
     beach_slopes = range_slopes(settings['slope_min'], settings['slope_max'], settings['delta_slope'])
+    beach_slopes = np.clip(beach_slopes, None, settings['slope_max'])
     # integrate power spectrum
     idx_interval = np.logical_and(freqs >= settings['freqs_max'][0], freqs <= settings['freqs_max'][1]) 
     E = np.zeros(beach_slopes.size)
@@ -312,6 +321,7 @@ def integrate_power_spectrum(dates_rand,tsall,settings,key=None):
     delta = settings['delta_slope']/2
     f = sinterpolate.interp1d(beach_slopes, E, kind='linear')
     beach_slopes_interp = range_slopes(settings['slope_min'],settings['slope_max'],delta)
+    beach_slopes_interp = np.clip(beach_slopes_interp, None, settings['slope_max'])
     E_interp = f(beach_slopes_interp)
     # find values below minimum + 5%
     slopes_min = beach_slopes_interp[np.where(E_interp <= np.min(E)*(1+settings['prc_conf']))[0]]
