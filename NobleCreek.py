@@ -36,10 +36,10 @@ def setup_user_input_settings():
         'generic_land_mask': False,
         'cloud_buffer': 9,
         'max_dist_ref': 150,
-        'min_beach_area': 25 * 25,
-        'min_length_sl': 100,
+        'min_beach_area': 50 * 50,
+        'min_length_sl': 150,
         'GDAL_location': r'C:\Users\psteeves\AppData\Local\miniforge3\envs\coastsat_ps\Library\bin',
-        'georef_im': False,
+        'georef_im': 'NOBLE_CREEK_im_ref.tif',
         'water_index': 'NmG'
     }
     return settings
@@ -55,13 +55,13 @@ def pre_process_data(settings, outputs):
     """Perform pre-processing steps including data extraction, reference image selection, and coregistration."""
     data_extract(settings, outputs)
     select_ref_image(settings, replace_ref_im=False)
-    pre_process(settings, outputs, del_files_int=True, rerun_preprocess=True)
-    add_ref_features(settings, plot=False, redo_features=True)
+    pre_process(settings, outputs, del_files_int=True, rerun_preprocess=False)
+    add_ref_features(settings, plot=False, redo_features=False)
 
 
 def extract_and_filter_shorelines(settings, outputs):
     """Extract shoreline data and filter it for manual corrections."""
-    shoreline_data = extract_shorelines(outputs, settings, del_index=True, rerun_shorelines=False, reclassify=False)
+    shoreline_data = extract_shorelines(outputs, settings, del_index=True, rerun_shorelines=True, reclassify=False)
     filtered_shoreline_data = filter_shorelines(settings, manual_filter=False, load_csv=False)
     return filtered_shoreline_data
 
@@ -122,7 +122,7 @@ def estimate_beach_slope(settings, sl_csv, dates_sat, dates_ts, tides_sat, tides
 
     # Prepare settings
     settings_slope = {
-        'slope_min': 0.005,
+        'slope_min': 0.035,
         'slope_max': 0.6,
         'delta_slope': 0.005,
         'n0': 50,
@@ -137,8 +137,8 @@ def estimate_beach_slope(settings, sl_csv, dates_sat, dates_ts, tides_sat, tides
     settings_slope['date_range'] = [2020, 2024]
 
     # Convert date range to datetime objects
-    settings_slope['date_range'] = [pytz.utc.localize(datetime(settings_slope['date_range'][0], 8, 1)),
-                                    pytz.utc.localize(datetime(settings_slope['date_range'][1], 7, 1))]
+    settings_slope['date_range'] = [pytz.utc.localize(datetime(settings_slope['date_range'][0], 1, 1)),
+                                    pytz.utc.localize(datetime(settings_slope['date_range'][1], 1, 1))]
 
     # Ensure dates_sat are datetime objects
     dates_sat = [pytz.utc.localize(datetime.strptime(date_str, '%Y-%m-%d')) if isinstance(date_str, str) else date_str for date_str in dates_sat]
@@ -160,7 +160,7 @@ def estimate_beach_slope(settings, sl_csv, dates_sat, dates_ts, tides_sat, tides
     SDS_slope.plot_timestep(dates_sat)
     plt.gcf().savefig(os.path.join(fp_slopes, '0_timestep_distribution.jpg'), dpi=200)
 
-    settings_slope['n_days'] = 1
+    settings_slope['n_days'] = 0.5
 
     settings_slope['freqs_max'] = SDS_slope.find_tide_peak(dates_sat, tides_sat, settings_slope)
     plt.gcf().savefig(os.path.join(fp_slopes, '1_tides_power_spectrum.jpg'), dpi=200)

@@ -199,7 +199,7 @@ def gdal_subprocess(settings, gdal_command_in, command_list):
     gdal_output = subprocess.check_call(gdal_command)
     if gdal_output != 0:
         gdal_output = subprocess.check_output(gdal_command)
-        print(gdal_output)
+        # print(gdal_output)
 
 
 def merge_crop(settings, files_list, file_out_name, epsg_in = False, nan_mask = False):

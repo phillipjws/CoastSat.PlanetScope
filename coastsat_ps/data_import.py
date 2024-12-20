@@ -35,7 +35,7 @@ def initialise_settings(settings):
     # Error filtering level (0-3: lower number less likely to fail but less accurate)
     settings['filter_level'] = 2 #3 often fails, bug?
     # Workaround for arosics inability to coregister images with different CRS. Reprojects all TOA/mask files to output epsg first. 
-    settings['arosics_reproject'] = True
+    settings['arosics_reproject'] = False
     # GDAL warp CRS re-sampling method. 
         # 'near' is the fastest/default but images may be jagged as no is smoothing applied. 'cubic' & 'cubicspline' look the best but are slowest. 'bilinear' is a good middle ground. 
         # Note that re-sampling using cubic, cubicspline and bilinear options may cause issues with arosics. 

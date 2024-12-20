@@ -282,7 +282,7 @@ def batch_threshold_sl(outputs, settings):
             
             # Process shoreline for plotting
             sl_pix = convert_world2pix(shoreline_single, georef) 
-            im_RGB = rescale_image_intensity(im_ms[:,:,[6,3,1]], comb_mask, 99.9)
+            im_RGB = rescale_image_intensity(im_ms[:,:,[5,3,1]], comb_mask, 99.9)
 
             # Plot shorelines and histogram
             if settings['generic_sl_region']:

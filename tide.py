@@ -18,21 +18,21 @@ ocean_tide = handlers['tide']
 load_tide = handlers['radial']
 
 #%%
-centroid = [-132.97826548310042,
-          69.44147810360226]
+centroid = [-130.4859088033424,
+          54.31321200644214]
 centroid[0] = centroid[0] + 360
-date_range = [pytz.utc.localize(datetime.datetime(2014, 1, 1)), pytz.utc.localize(datetime.datetime(2014, 2, 1))]
+date_range = [pytz.utc.localize(datetime.datetime(2017, 1, 1)), pytz.utc.localize(datetime.datetime(2019, 1, 15))]
 timestep = 60 * 60  # 1 hour in seconds
 
 dates_ts, tides_ts = SDS_slope.compute_tide(centroid, date_range, timestep, ocean_tide, load_tide)
 
 # Adjust the predicted tide with the given offset
-offset = 0.4
+offset = 3.9
 predicted_tides = np.array(tides_ts) + offset
 
 dates_csv = []
 observed_tides = []
-path = os.path.join(os.getcwd(), 'tide_csvs', '6485-01-JAN-2014_slev.csv')
+path = os.path.join(os.getcwd(), 'tide_csvs', '9354-01-JAN-2014_slev.csv')
 with open(path, newline='') as csvfile:
     reader = csv.reader(csvfile)
     next(reader)  # Skip header
@@ -63,7 +63,7 @@ plt.plot(aligned_dates, aligned_observed, label="Observed Water Level", color="b
 plt.plot(aligned_dates, aligned_predicted, label="Predicted Water Level", color="orange", marker="x", linestyle="-")
 plt.xlabel("Date and Time (UTC)")
 plt.ylabel("Water Level (metres)")
-plt.title("Observed vs Predicted Water Levels in Tuktoyaktuk With Offset 0.4m")
+plt.title(f"Observed vs Predicted Water Levels in Prince Rupert With Offset {offset:.1f}m, RMSE: {rmse:.3f}m")
 plt.legend()
 plt.xticks(rotation=45)
 plt.tight_layout()

@@ -58,13 +58,13 @@ filepath_models = create_folder(os.path.join(os.getcwd(), 'models'))
     # to a new folder and set this folder as filepath_images variable (below)
     # Note: You only need a few images (~10) to train the classifier.
      
-sitename = 'JAMES_ISLAND'
+sitename = 'ISLAND_VIEW_BEACH'
 
-filepath_images = r'C:\Users\psteeves\coastal\planetscope_coastsat\outputs\JAMES_ISLAND\toa_image_data\merged_data\global_coreg_merged'
+filepath_images = r'C:\Users\psteeves\coastal\planetscope_coastsat\outputs\ISLAND_VIEW_BEACH\ISLAND_VIEW_BEACH\toa_image_data\merged_data\global_coreg_merged'
 
 epsg = 3157
 
-classifier_save_name = 'NN_8b_new'
+classifier_save_name = 'NN_8b_5_sites'
 
 
 #%% Update settings
@@ -117,8 +117,8 @@ features = load_labels(train_sites, settings)
 # for key in features_original.keys():
 #     print('%s : %d pixels'%(key,len(features_original[key])))
 
-# # # Option 1) add the white-water data from the original training data
-# # features['white-water'] = np.append(features['white-water'], features_original['white-water'], axis=0)
+# # # # Option 1) add the white-water data from the original training data
+# # # features['white-water'] = np.append(features['white-water'], features_original['white-water'], axis=0)
 
 # # # Option 2) Merge all the classes
 # for key in features.keys():

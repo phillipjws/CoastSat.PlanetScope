@@ -183,7 +183,7 @@ def ref_im_select(settings):
         mask_comb = (zero_mask + nan_mask + cloud_mask) != 0
         
         # rescale image intensity for display purposes
-        im_RGB = rescale_image_intensity(im_ms[:,:,[6,3,1]], mask_comb, 99.9)
+        im_RGB = rescale_image_intensity(im_ms[:,:,[5,3,1]], mask_comb, 99.9)
 
         # plot the image RGB on a figure
         ax.axis('off')
@@ -293,7 +293,7 @@ def merge_im_select(settings):
             continue
 
         # rescale image intensity for display purposes
-        im_RGB = rescale_image_intensity(im_ms[:,:,[6,3,1]], mask_comb, 99.9)
+        im_RGB = rescale_image_intensity(im_ms[:,:,[5,3,1]], mask_comb, 99.9)
 
         # plot the image RGB on a figure
         ax.axis('off')
@@ -403,7 +403,7 @@ def get_reference_sl(settings, redo_features=False):
         im_ms, nan_mask = get_ps_data(fn)
         
         # rescale image intensity for display purposes
-        im_RGB = rescale_image_intensity(im_ms[:,:,[6,3,1]], nan_mask, 99.9)
+        im_RGB = rescale_image_intensity(im_ms[:,:,[5,3,1]], nan_mask, 99.9)
 
         # plot the image RGB on a figure
         ax.axis('off')
@@ -553,7 +553,7 @@ def get_transects(settings):
         im_ms, nan_mask = get_ps_data(fn)
         
         # rescale image intensity for display purposes
-        im_RGB = rescale_image_intensity(im_ms[:,:,[6,3,1]], nan_mask, 99.9)
+        im_RGB = rescale_image_intensity(im_ms[:,:,[5,3,1]], nan_mask, 99.9)
 
         # plot the image RGB on a figure
         ax.axis('off')

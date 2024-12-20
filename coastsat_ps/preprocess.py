@@ -424,8 +424,7 @@ def batch_coreg(settings, outputs):
         for toa_id in range(len(outputs['raw_data'][dates]['TOA.tif']['filenames'])):
             
             #print('\nPerforming co-registration for image ' + str(img_count) + ' of ' + str(img_all))
-            print('\rPerforming co-registration for image ' + str(img_count) + ' of ' + str(img_all) + ': ' + 
-                  outputs['raw_data'][dates]['TOA.tif']['filenames'][toa_id] + '     ', end='')
+            print('\rPerforming co-registration for image ' + str(img_count) + ' of ' + str(int(img_all / 5)), end='')
 
             img_count += 1
             
